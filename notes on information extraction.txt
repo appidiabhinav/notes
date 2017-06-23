@@ -1,0 +1,830 @@
+\documentstyle[12pt]{article}
+
+\title{Information extraction --- first notes}
+\author{Michael Nielsen}
+
+\begin{document}
+
+\maketitle
+
+This document contains my first notes getting a survey overview of the
+field of information extraction.  It's unrevised and undistilled,
+written solely for myself, and unlikely to be of much use to anyone
+else.  If for some reason you want to look through the notes, that's
+fine, but they will contain lots of errors, misunderstandings,
+thinking out loud, and so on.
+
+\section{Overview}
+
+\textbf{Wikipedia article on information extraction:} Example is
+extracting reports of company mergers from news wire articles.  Early
+example of a system was JASPER, built for Reuters, with the aim of
+providing financial news to financial traders.  1987-1998: the Message
+Understanding Conferences were seminal.  Support came from DARPA, who
+wished to automate tasks performed by analysts.  It's unclear to me
+how much the semantic web will help --- stuff in ``machine readable''
+form often isn't that much easier to understand than plain text.
+Standard way of thinking: unstructured data -> database.  There are
+all sorts of subtasks: recognizing named entities; detecting
+coferences; extracting relationships.  Not so dissimilar to full-on
+natural language processing! Also includes things like table
+extraction, comment extraction, and terminology extraction.
+Information extraction is also done on media sources other than text.
+Wrappers can be used to extract a particular page's content.  They're
+usually taylored to highly structured collections of pages.
+
+The article claims that there are \textbf{three standard approaches}
+to information extraction: hand-written regular expressions;
+classifiers (Bayes, Maxent, SVMS, conditional random fields); and
+sequence models.  This is a funny way of dividing stuff up: in a
+sense, the sequence models are examples of classifiers.  
+
+\textbf{Wikipedia article on text simplification:} This is a procedure
+one applies to a text.  The intent is to preserve meaning, while
+making the text simpler.  It'd be interesting to have an example of
+output from such a system.  One thing which is done is to break
+complex compound sentences down into simple sentences, without
+subordinate clauses.
+
+At least some of this work is being used in science, to extract
+information from papers.
+
+The use of text simplification sets up a pipeline.  We take complex
+sentences, then apply text simplification to produce simple output
+sentences, which can then be understood using a further stage.  It's a
+nice two-part model.  It's unclear to me that this is what we actually
+do when we parse speech (not that that necessarily matters).  One of
+the papers in the area (by Klebanov, Knight and Marcu) introduces a
+notion of Easy Access Sentences: the goal of text simplification is to
+produce such sentences.
+
+\textbf{Wikipedia article on wrappers:} Says there are two main
+approaches to wrappers: (1) wrapper induction, and (2) automated data
+extraction.  Wrapper induction starts with a set of manually labelled
+training examples to learn data extraction rules.  The problem, of
+course, is that this requires one to come up with a set of training
+examples, and the system will break when we see examples outside the
+types seen in the training set.  This may occur, for example, when a
+site changes its template.  Automated data extraction tries to
+discover the patterns in webpages without manually labelled training
+data.
+
+\textbf{Wikipedia article on named entity recognition:} Also known as
+entity identification and entity extraction.  The idea is to classify
+atomic elements in text into predefined (really?) categories.  You can
+think of it as a form of annotion, taking unstructured text, and
+beginning to structure it.  For example, the Message Understanding
+Conferences developed a set of standard tags (ENAMEX) that were used
+to categorize the atomic elements in text.  This approach seems
+surprising to me: it doesn't seem scalable, given the very large
+(infinite) number of categories we humans potentially have available.
+It's also true that one atomic element in text may belong to multiple
+categories.
+
+The article claims that the best current systems for named entity
+recognition perform at near-human levels of performance.  But it also
+comments that named entity recognition systems which perform well in
+one domain often don't perform well in other domains.  As for machine
+translation there is again a distinction between rule-based and
+statistical model-based systems.  (I wonder which is better?)
+
+At least two hierarchies of named entities have been proposed in the
+literature.  There are BBN categories, with 29 types and 64 subtypes.
+There is an extended hierarchy, due to Sekine, with 200 subtypes.
+
+\textbf{Wikipedia article on Message Understanding Conferences:} The
+conference was organized with many research teams competing against
+one another, with a metrics-based approach.  At the sixth conference
+--- MUC-6 --- the task of recognizing named entities and coreferences
+was added.  For a named entity, all phrases in the text were ``to be
+marked as person, location, organization, time or quantity.''  The MUC
+conferences were associated with DARPA's TIPSTER program, which aimed
+at doing document detection, information extraction, and
+summarization.  TIPSTER was apparently discontinued in 1998.
+
+\textbf{Wikipedia article on precision and recall:} I'm familiar with
+these notions in the context of information retrieval.  But the
+Wikipedia article does an interesting job broadening the discussion to
+pattern recognition in general.  Starts with the notion of
+\emph{accuracy}: how often is the correct results returned.  For
+example, if we're shown an image of a whale, how often does an
+algorithm correctly identify it as a whale?  Considers precision and
+recall as generalizations.  I'll come back to this point.
+
+Let's recap how it works in information retrieval.  You're given a
+query, $q$, and identify some set $S$ of documents as relevant.  In
+fact, the ``true'' set of relevant document is $S_T$.  The ``correct''
+documents are those in $S \cap S_T$.  So \emph{recall} is the fraction
+of all relevant documents returned: $|S \cap S_T| / |S_T|$.
+\emph{Precision} is the fraction of document returned by the search
+which are truly relevant: $|S \cap S_T| / |S|$.
+
+In other words, recall is the answer to the question ``What fraction
+of truly relevant documents to the query are returned?''  Precision is
+the answer to the question ``What fraction of the returned documents
+are truly relevant to the query?''
+
+It's easy to build an information retrieval system which gets high
+recall: it simply dumps everything.  Unfortunately, this will give
+low precision: most of the documents won't be truly relevant to the
+query.
+
+It's also (relatively) easy to build an information retrieval system
+which gets high precision: it simply tries to identify a single
+document which is highly likely to be relevant, and returns that.  
+
+Note that the task of building high-precision systems is complicated
+by the fact that some queries are going to be hard to understand.
+Many people might guess that ``President in a black hat'' refers to
+Abraham Lincoln, but an information retrieval system might have
+trouble with this.  So it seems likely that we might get low-precision
+results.  But a sufficiently generous search algorithm might also get
+pretty high recall, since at least \emph{some} webpages will make the
+connection between ``black hat'' and ``Lincoln'', and (hopefully) that
+will allow it to infer that it should return other pages connected to
+Lincoln.
+
+It's worth pointing out that both precision and recall are
+mathematically \emph{ill-defined}.  They depend on human psychology.
+And to evaluate them will require training examples.  It's not obvious
+how to do this at web scale, as a single user.  But if you can get a
+lot of users, then you can do all sorts of evaluation experiments.
+
+We can think of spam in this context.  What spam does is pollutes your
+search results, returning irrelevant pages, i.e., decreasing
+precision.  But it doesn't necessarily affect recall.  When someone
+says something is ``spammy'' that's really what is meant: it is
+decreasing precision.  ``Good'' advertising doesn't do this: it only
+shows you stuff that is relevant, while ``bad'' advertising decreases
+precision.
+
+It's interesting to consider that television advertising is very low
+precision, while Google's advertising aims to be high precision: i.e.,
+to only show you stuff that is actually relevant.
+
+Coming back to the issue of evaluating precision, this is something
+which in principle we ought to be able to estimate using user click
+data.  It's not so clear, though, how we'd be able to estimate recall.
+My intuition is that users will be much more sensitive to changes in
+precision than to changes in recall.  
+
+There is a use case where the last sentence in the last paragraph is
+definitely not true: when you're trying to find something that you've
+previously found.  In that case, there is only one relevant document,
+and it should (ideally) be the single document returned.  At a minimum
+you need perfect recall (and, ideally, high precision).
+
+Note that for search, precision is not a precise enough notion(!)
+The problem is that we intuitively have notions of more and less
+relevant: we want highly relevant things to come up early in the
+search results, and less relevant things to come up later.  I don't
+know how to quantify this.
+
+With the above discussion in mind, it starts to become obvious how
+this applies in more general classification contexts.  Suppose we have
+a large number of photographs.  We're asked: which ones are whales?
+We have an algorithm attempt a classification.  Recall is the fraction
+of (true) whales it correctly ``recalls'', i.e., identifies as whales.
+Precision is the fraction of what it recalls that are, in fact,
+whales.  Ideally, we'd score perfecly on both (i.e., 1.0).  But it's
+pretty clear that we'd be happy with high precision (so nearly
+everything it identifies is, in fact, a whale), and low recall (so it
+misses some whales).
+
+More generally, for any classification tasks, the precision is the
+fraction of \emph{positives} which are \emph{true}: i.e., the fraction
+of positives (``this is a whale'') which are actually correct (``this
+really is a whale'').  The recall is the fraction of the \emph{true}
+things (``this really is a whale'') which are in positive class
+(``this is a whale'').
+
+The article remarks that there is often an inverse relationship
+between precision and recall. We can increase recall by being more
+generous about what documents to return from our search: but we
+decrease precision (more false positives).  We can increase precision
+by being very strict about what documents to return, but lowering
+recall (we'll miss some, getting more false negatives).
+
+Apparently, the two are often combined into a single measure, such as
+the F-measure, or the Matthews correlation coefficient.  It's also
+often the case that in evaluations one tries to fix one quantity, and
+see how to vary the other.
+
+Note that intuitively these notions can be put into good
+correspondence with what it's like to talk with someone about a
+subject: someone has very good recall if they can tell us everything
+relevant to some subject.  But some people with very good recall may
+nonetheless have low precision: they often tell us things which aren't
+really relevant.  The intuitive matchup with pattern recognition and
+classification isn't so good.
+
+Apparently, in binary classification problems, recall is sometimes
+called sensitivity.  This is a good matchup to our intuition: a system
+may be highly sensitive to pictures of whales, for example.
+
+The article also defines these notions using the ``true positive'',
+``false positive'' etc terminology.  This is worth getting comfortable
+with, and so I'll go through it here.  Note that a false negative is
+something that is incorrectly classified as a negative; e.g., it
+\emph{is} a photo of a whale, but is incorrectly classified as not
+being one.  So:
+$$
+\mbox{recall} = \frac{tp}{tp+fn}, 
+$$ 
+since $tp+fn$ is the total number of true instances (whales).
+Meanwhile,
+$$
+\mbox{precision} = \frac{tp}{tp+fp},
+$$
+since $tp+fp$ is the total number of things identified as being whales
+by the classifier, regardless of whether they truly are.
+
+The article points out a nice probabilistic interpretation.  The
+recall is the probability that a randomly chosen relevant document
+will be returned in the search.  The precision is that probability
+that a randomly chosen retrieved document is, in fact, relevant.
+
+Of course, all of this is ``just'' terminology.  However, it is worth
+mastering becasue the terminology is so widely used within the field.
+With that said, the terminology imposes one particular way of looking
+at the world, and other ways are possible.  It's worth keeping closely
+in mind that there is a much more fundamental underlying question:
+``What documents should a search system return'', and ``What instances
+should our classifier return as positives?''  It's important to keep
+going back to these more fundamental questions, and to answer them
+anew; recall and precision are only proxies for answers, albeit
+widely-used proxies.
+
+There is a nice quote at the end of the article that points out that
+for web browsing purposes neither high recall nor high precision may
+be of all that much use: all we really want are some relevant
+documents in the top ten search results.  Now, in practice there may
+be other use cases --- e.g., when we want to find a specific page ---
+but this is certainly the case often.
+
+\textbf{Wikipedia article on coreference:} ``Michael said he would run
+to the store'': in this sentence ``Michael'' and ``he'' both refer to
+the same thing: they are \empph{coreferent}.  Note that references are
+frequently ambiguous.  In context, ``he'' might actually refer to
+someone else, if the sentence were part of a larger conversation.
+
+Pronouns obviously need to have their referent disambiguated.  
+
+There are also instances of synonomous noun phrases: ``IBM'' and ``Big
+Blue'' will often have the same referent.
+
+I can see why Lisp is so popular with some in the AI community: we
+don't need so much algorithms as meta-algorithms in order to think
+about these kinds of problems.  Any given approach will have
+limitations; what we want is systems that get better in response to
+feedback.
+
+The article claims there is a tradeoff between precision and
+recall. In this context, I don't quite get it.  Surely all that
+matters is precision: we want to make sure that our phrase, say
+``he'', refers to the right referent, say ``Michael''.  I don't
+understand what recall means in this context.
+
+Apparently ``it'' causes all sorts of problems for coreference
+resolution, just because it (!) can be used in so many ways.
+
+The article claims that algorithms for co-reference resolution tend to
+have accuracy in the 75 percent range --- I assume this is a reference
+to precision.
+
+\textbf{Wikipedia article on relationship extraction:} The article is
+rather incomplete at present.  It focuses on domain ontologies, and
+mentions the extraction of such ontologies from extant sources (e.g.,
+Wikipedia).
+
+\textbf{Wikipedia article on Conditional Random Fields:} Used to parse
+or label sequential data --- text, genes, visual.  Can be used to do
+shallow parsing of text.  In vision, can be used to do object
+recognition.  They seem to have been defined in 2001, in a paper by
+Lafferty, McCallum, and Pereira.  It's a very simple idea.  Basically,
+we imagine having two fields $X$ and $Y$ defined on the vertices of a
+graph.  We can imagine that $Y$ satisfies the Markov property in the
+sense that the conditional probabilites $p(Y_v | X, Y_w)$ where $w$
+ranges over all vertices not equal to $v$, are determined entirely by
+the values of $Y_w$ at adjacent vertices $w$ to $v$.  In other words,
+given $X$, the value of $Y$ at a vertex depends (stochastically) only
+on the values of $Y$ at neighbouring vertices.
+
+My sense is that I could explain this better.  I could come up with a
+more vivid explanation.  Probably the way to go is to find a good
+(non-Markov) example.  I might also think a bit about how I explain
+Markov chains.  (Unfortunately, as it stands the Wikipedia article
+isn't so clear --- August 5, 2011.)  There do appear to be some nice
+review articles, though, so I may switch to those.
+
+\textbf{Wikipedia article on Naive Bayes:} It's a probabilistic
+classifier based on applying Bayes' theorem, with some simple
+underlying assumptions. Bayes classifiers can be trained easily in a
+supervised learning setting.  Outperformed by approaches such as
+boosted trees and random forests.
+
+Example: is this object an apple?  Consider: is it red, is it round,
+is it 5-20 cm in diameter?  Then take the answer to these questions to
+be \emph{independent} in arriving at some estimate of the likelihood
+this is an apple.  To put it another way, we're using very simple
+statistical modelling, which may be unjustified.
+
+A better example: is this email message spam?  Here's a simple model:
+p(spam) = p(contains spammy words and comes from a spammy ip range) =
+p(contains spammy words) times p(comes from a spammy ip range).  This
+only helps when a feature is determined by the presence of multiple
+categories.  Still, that's often the case.
+
+In fact, the Wikipedia article actually works through an example.  Let
+me go over it.  Let $D$ be a random variable indicating some notion of
+sampling over the space of all documents.  Let $C$ be a random
+variable indicating that $D$ belongs to some class (e.g., the class of
+spam documents, or the class of love letters, or the class of
+documents that aren't spam, etc).  We have:
+\begin{eqnarray}
+p(C|D) = \frac{p(C)}{p(D)} p(D|C).
+\end{eqnarray}
+Let's assume that we can factor $p(D|C)$ as $p(D|C) = \prod_j p(W_j|C)$,
+where $W_j$ is the $j$th word in $D$.  Then let $S$ be the event
+that $D$ is spammy, and $S'$ the event that $D$ is not spammy. We have
+\begin{eqnarray}
+p(S|D) = \frac{p(S)}{p(D)} \prod_j p(W_j|S),
+\end{eqnarray}
+and similarly for $S'$.  Taking the ratio we get:
+\begin{eqnarray}
+  \frac{p(S|D)}{p(S'|D)} = \frac{p(S)}{p(S')} \prod_j \fract{p(W_j|S)}{p(W_j|S')}.
+\end{eqnarray}
+This is terrific. Suppose we take a sample of a few thousand
+documents.  Then we can hand classify them as spam or not spam, and
+get estimates for $p(S)$ and $p(S')$. We can also get estimates of
+$p(W_j|S)$ and $p(W_j|S')$ for common words.  There is a problem,
+which is caused by words which don't appear in the training data.  My
+first thought is to just ignore those; I should come back to this.
+
+Obviously, there's little in this example which has to do with spam or
+not spam --- it's a nice general way of classifying documents!
+
+\textbf{Wikipedia article on part-of-speech tagging:} Also called
+word-category disambiguation.  Makes the observation that many schools
+teach that there are nine parts of speech in English, but POS taggers
+usually have far more categories.  A new term: the ``case'' of a word
+is whether it's subject or object (or something else).
+
+The Brown corpus is completely and near-perfectly tagged.  As such,
+it's a good test data set.  COntains a million words.  Later corpi are
+even larger.  British National Corpus is 100 million words. It
+contains 10 million words of spoken English, half of which is natural
+conversations between members of the public!  Looks like the American
+National Corpus isn't quite as comprehensive.  THe Oxford English
+corpus is even larger, but it's not clear that it has been POS-tagged
+reliably.
+
+The Brown Corpus contains a case with 17 ambiguous words in a row!
+
+The word ``still'' can represent up to 7 parts of speech!
+
+POS algorithms: hidden Markov models; dynamic programming methods.
+There are also methods that actually identify the parts of speech in a
+completely unsupervised way!
+
+\textbf{Wikipedia article on Hidden Markov Models:}
+
+\textbf{Wikipedia article on disambiguation:}
+
+\textbf{Wikipedia article on terminology extraction:}
+
+\textbf{Wikipedia article on supervised learning:}
+
+\textbf{Wikipedia article on unsupervised learning:}
+
+\textbf{Wikipedia article on Hidden Markov Model:}
+
+
+Other Wikipedia articles: concept mining; web scraping; nutch;
+enterprise search; semantic translation; TIPSTER; faceted search;
+natural language processing; Matthew Correlation Coefficient. F1
+score.  Type I and Type II errors.  Pleonasm and it.  Data warehouse.
+Business Intelligence [2.0]; text analytics; lexical semantics;
+dynamic programming;
+
+\section{Papers}
+
+What are the key papers?  It's worth also sorting out some of the key
+journals, key people, key institutions.
+
+\textbf{Motivations and methods for text simplification:}
+(R. Chandresekar, Christine Doran, and B. Srinivas, 1996):
+http://portal.acm.org/citation.cfm?id=993361.  This appears to be one
+of the key early papers.  The idea is that instead of parsing a
+sentence, we'll instead use an alternative approach which is simpler
+than full parsing.  They present two approaches: (1) Use a finite
+state group to produce noun and verb groups; (2) Use a supertagging
+model to produce dependency linkages.
+
+\textbf{Ralph Grisham and Beth Sundheim, Message Understanding
+  Conference - 6: A Brief History:
+  http://acl.ldc.upenn.edu/C/C96/C96-1079.pdf:} A metrics-based
+approach to driving science.  It would be interesting to know how well
+this worked (it's a very clear goal!) and what it missed (may have led
+to a concentration of attention).  MUC-1 is described as being
+exploratory.  MUC-2 crystallized things out.  The first metric is
+\emph{recall}: what fraction of keys were filled out correctly?  And
+\emph{precision:} what fraction of keys that were filled out were
+filled out cooectly?  (Note that precision will always be better than
+recall with this definition.)  This article suggests that it wasn't
+until MUC-5 that it became part of DARPA TIPSTER.  Interestingly,
+MUC-6 broadened the metrics, so that there were several tasks
+participants could focus on.
+
+\textbf{Yifan Li, Petr Musilek, Marek Reformat, and Loren Wyard-Scott:
+  ``Identification of pleonastic it using the web'' (2009):
+  http://www.jair.org/media/2622/live-2622-4362-jair.ps:} Apparently
+this paper makes use of the web as a corpus to do an excellent job of
+identifying pleonastic uses of ``it'' in sentences.  This can help
+with coreferent resolution.  More generally, this seems like an
+interesting and powerful idea: using the web as training data to help
+in other tasks.
+
+\textbf{Oren Etzionia, Michele Banko, Stephen Soderland, and Daniel
+  S. Weld: ``Open information extraction from the web'' (2008):
+  http://portal.acm.org/citation.cfm?id=1409378} Starts with the idea
+that instead of returning search results, we'll get an automatically
+synthesized overview of what we need to know.  It's an interesting
+motivating vision, but may not be a realistic endpoint.  It seems that
+working on the web is both a blessing and a cure.  It's a curse
+because of the open nature --- anyone can post, and so there is a lot
+of misleading information.  It's a blessing, though, because of the
+enormous scale, which gives us lots of data to use.
+
+``At the core of an IE [information extraction] system is an
+extractor: it overlooks irrelevant words and phrases and attempts to
+home in on entities and the relationships between them.''  Example:
+``Paris is the stylish capital of France'' might get mapped to (Paris,
+Capital, France).  Note that this example does lose something --- we
+lost the information about Paris being stylish --- but we also gained
+something in terms of being able to make inferences.  
+
+The article identifies three broad methods for information extraction:
+knowledge-based methods; supervised learning; unsupervised learning.
+
+The knowledge-based methods required the use of handcrafted rules,
+tailored to particular domains.  This would obviously require a lot of
+work.  It was popular in the early MUC conferences, which tended to
+narrow the domain of considered documents.  Not portable, not easy to
+scale, without enormous human effort.
+
+Identifies modern IE, beginning with the work of Soderland, Riloff and
+Kim and Moldovan, in the 1990s.  These use supervised learning.
+Identifies some recent advances, including automatic induction of
+features when learning conditional random fields, and using Markov
+logic networks to develop extraction frameworks.  
+
+Identifies KnowItAll as ``the next step'': uses a small number of base
+rules to figure out how to label its own training examples.  Doesn't
+require domain-specific rules.  It's based on a very clever idea:
+using search to train the system.  So, for example, we look for pages
+containing statements like ``X is a country''.  The results are not
+entirely reliable: I just tried ``* is a country'' in Google, and the
+first three results tell me that Africa, Europe and Dondal Rumsfeld
+are all countries.  This is a problem: when are people speaking
+polemically, or ironically, or figuratively?
+
+Next, having identified some candidates, we then query the web to
+figure out just how likely each one is to be correct.  Apparently, the
+rules are constructed so that KnowItAll \emph{iteratively bootstraps}
+its own learning process.
+
+KnowlItAll requires the set of relations to be named by the human user
+in advance.  
+
+It seems that bootstrapping is really helped by starting with a fairly
+trustworthy corpus.  It suggests an approach: start with something
+very trustworthy, and then gradually branch out, adding more and more
+sources, cross-checking and extending in this way. 
+
+Something that I'm noticing as I read is just how important
+classifiers are.  Much of what we're doing is building up a huge array
+of classifiers.  These let us answer membership questions: Is a
+labrador a dog?; Is a sheep a plant?; Is a colour a rectangle?  And so
+on.
+
+We have all these abstractions for dealing with these things.  And yet
+the abstractions are not yet powerful enough to support the tasks that
+we humans do effortlessly.
+
+Often, we apply classifiers in parallel.  In the sentence ``Garth
+Brooks is a country singer'', should think of Garth Brooks as a
+country, or as something else.  If we have two possible
+classifications --- country and country singer --- then we should
+detect both, and then do some kind of resolution.  So it's a two-stage
+process: find possible classifications, then do conflict resolution.
+That problem of conflict resolution is also likely to be quite
+complex.
+
+Let me do some review of what's involved: learning of rules,
+bootstrapping from a starting corpus.  One thing we do is learn what
+the enties / concepts are.  Then, later, we need to do entity
+extraction, and that may involve first figuring out the possible
+entities, and then going through a disambiguation / conflict
+resolution phase.
+
+Next, they talk about \emph{open information extraction}: extraction
+from open-ended sources, like the web.  Some points to note: they can
+do this in any language; they don't rely on having a set of relations
+upfront, but rather infer the relations from the corpus; it's not
+clear what the role of punctuation is, but clearly it's important.
+
+Something I find very striking in all this is how much it relies on
+the subject-verb-object way of expressing knowledge.  That is,
+obviously, tremendously powerful, but it's not clear to me that it's
+really powerful enough.  Still, it's also the kind of thing that seems
+useful to explore and develop.
+
+Something striking about all this is that they're not talking much
+about performance, or how they assess it, beyond occasional mentions
+of precision and recall, without numbers.  This seems problematic.
+
+TextRunner learns the entities, relations, and classes (?) from
+scratch.  It uses conditional random fields.  The idea seems to be to
+build some sort of model by maximizing conditional probabilities in
+some way.  I'd need to see details, but this general idea seems
+attractive to me.  They have something called the Resolver system
+which figures out the probability that two strings are synonomous.
+
+They have run TextRunner on a collection of 120 million web pages,
+extracting 500 million tuples.  The precision of the process exceeds
+75 percent --- in other words, more than 75 percent of the tuples are
+actually correct!  Increasing the size of the corpus apparently
+increases precision.  They say it also increases recall, although in
+this context I'm not sure what that means.
+
+Applications of open information extraction: they provide three:
+question answering; opinion mining; and fact checking.  I can see how
+any of these might be useful in conjunction with human operators.  I
+like their proposal for a fact checker built into a word processor!
+
+I wonder how the relations they extract compare to Cyc?
+
+Summing up: powerful ideas include the notion of doing some sort of
+disambiguation; using the web as an information source to extract
+relations; using Markov chain models and statistical models to make
+inferences about possible relations.  In short, I've got something of
+a map to think about, but really need to dig down into some of the
+details.
+
+\textbf{Hanna M. Wallach, Conditional Random Fields: An Introduction:
+  http://www.cs.umass.edu/~wallach/technical_reports/wallach04conditional.pdf:}
+Starts with the problem of labelling things in sequence.  For
+instance, we might have a sentence and want to label the different
+words in the sentence according to their part of speech.  (A useful
+term is ``POS tagging'', or ``Part-of-speech tagging''.  There is
+apparently quite a bit of agreement on the terminology to be used.)
+The article claims that Hidden Markov Models are often used to do this
+kind of labelling.  The idea is that we have a (sequence of) random
+variable(s) $X$ representing the sentence, and $Y$ is the
+corresponding random variable representing the labelling.  I.e., $X$
+is the input, $Y$ the output.  We now try to find a way of generating
+the joint probability distribution $p(X,Y)$.  What we try to do is to
+come up with a model for $p(Y|X=x)$.  We then choose the $y$ that
+maximizes $p(Y=y|X=x)$; this is our labelling.  To sum up: build a
+probabilistic model for labelling, and then choose the label that
+maximizes the probability.  She explains undirected graphical models;
+then conditional random fields (in terms of ``potential functions'');
+then gives a formula for the probability of a particular label
+sequence in terms of a set of Lagrange multipliers, and a sort of
+energy functional on pairs of labels and observations; we then use
+maximum entropy methods.  
+
+\textbf{Oren Etzioni, Anthony Fader, Janara Christensen, Stephen
+  Soderland, and Mausam (2011): Open Information Extraction: the
+  Second Generation:
+  http://ai.cs.washington.edu/www/media/papers/etzioni-ijcai2011.pdf:}
+Emphasizes the unlexicaled nature of the extractors.  Emphasizes
+question-answering systems.  Says the second generation makes use of a
+novel model of how relations and their arguments are expressed in
+English sentences.  Claims to double precision/recall compared to
+earlier systems.  I like the phrase ``Machine Reading''
+(c.f. ``Machine Teaching'', Hod Lipson).  Again, comes back to the
+``open information extraction'' notion.  Open IE identifies
+\emph{relation phrases}, phrases that denote relations in English
+sentences.  This allows us to get away from a pre-specified
+vocabulary.  ``Open IE systems avoid specific nouns and verbs at all
+costs'': I'm put in mind of the work that's been done on statistical
+machine translation.
+
+What's Open IE been used to do?  Learning selectional preferences
+(shopping, etc); acquiring commonsense knowledge; recognizing rules.
+The rules have also been mapped onto existing ontologies.
+
+The goal of the paper is to develop a second generation open IE
+system. They do this through a linguistic analysis of randomly chosen
+sentences.  The article describes two new open IE systems: ReVerb and
+R2A2.  REVERB has a new relation identifier.  R2A2 adds a new argument
+identifier.
+
+The basic idea of an Open IE system is to take a corpus and produce
+triples (Arg1, Pred, Arg2).  They name three prior systems,
+TEXTRUNNER, WOE, and STATSNOWBALL.  They identify three phases.  Phase
+one is to label the sentences.  This is done using heuristics or
+``distant supervision''.  Phase two is to learn a relation phrase
+extractor, using something like conditional random fields.  Finally,
+phase three is to extract relationships from sentences.
+
+TEXTRUNNER used Naive Bayes.  Later work showed that using conditional
+random fields or Markov Logic Networks led to better classification.
+Apparently, WOE made use of Wikipedia as a training corpus, and that
+led to improvements over TEXTRUNNER.
+
+Problems in previous open information extraction systems: incoherent
+extractions and uninformative extractions.  Apparently, incoherent
+extractions account for 15 or 30 percent of WOE's output (depending on
+phase), and 13 percent of TEXTRUNNER's output.  That's pretty bad: it
+means we're just getting junk a sizeable fraction of the time.
+Similarly, uninformative extractions (where the verb is too generic to
+have much meaning) make up 4-7 percent of extractions.  What this
+means is that a sizeable chunk of what's being extracted is of no use,
+or is actually actively counterproductive.
+
+The idea of REVERB seems to be to introduce a general model of
+relation phrases.  That model is expressed by two constraints: one
+syntactic, and one lexical.  The syntactic constrain requires the POS
+tagging to match a particular tag pattern.  Interesting aspect: they
+go for longest possible match for a relation.  Claim that it
+identifies relation phrases with high precision, and gets most of the
+relation phrases in a small sample corpus.  Of the 15 percent that it
+didn't get they were able to make some interesting observations about
+why they failed.
+
+I find the approach to science being pursued here very interesting.
+The authors are really studying something in depth, trying to build
+different models.  It's hard not to feel that the models being built
+aren't the best, but it's exactly this kind of work that will produce
+better and better models.
+
+Let me move on now to the lexical constraint.  The purpose of this is
+to eliminate useless relations.  The intuition is to get rid of
+relations with very instances in a corpus.
+
+REVERB architecture: Identifies relation phrases that satisfy the
+syntactic and lexical constraints.  Then finds NP arguments for each
+relation phrase, and assigns confidence scores.  The assignation is
+done using a logistic regression classifier trained with examples from
+the web.  REVERB uses OpenNLP for POS tagging and NP chunking.
+
+Given an input sentence, REVERB does (1) relation extraction; and (2)
+argument extraction.  It assumes that the sentence has been POS-tagged
+and NP-chunked.  The relation extraction is done by identifying verbs,
+and then applying the syntactic and lexical constraints.  The argument
+extraction is then done by finding adjacent NPs.
+
+The lexical constraint is implemented through a preprocessing step.
+Basically, we look at a large web corpus, and find frequent relations.
+That's our basic dictionary of relations.
+
+Something I wonder about: the algorithm commits to a lot.  This
+doesn't match my subjective experience of language, which is that we
+consider lots of possibilities in parsing a sentence, and only commit
+slowly; it's a sort of conditional probabilistic building up of
+understanding (``oops, that can't mean that, let's drop back down a
+level and consider the best alternative'').
+
+
+\textbf{Information extraction (Sunita Sarawagi):
+http://portal.acm.org/citation.cfm?id=1498845}
+
+\textbf{Coupled semi-supervised learning for information extraction (Andrew
+Carlson, Justin Betteride, Richard C. Wang, Estevam R. Hruschka, Jr,
+and Tom M. Mitchell): http://portal.acm.org/citation.cfm?id=1718501}
+
+\textbf{Open Information Extraction (Oren Etzioni):
+http://oai.dtic.mil/oai/oai?verb=getRecord\&metadataPrefix=html\&identifier=ADA538482}
+
+\textbf{More sources: http://ai.cs.washington.edu/projects/open-information-extraction}
+
+\textbf{Banko and Brill:}
+
+\textbf{Palantir blog:}
+
+\textbf{Charniak's 1997 review of parsing:}
+http://www.cs.brown.edu/~ec/papers/aimag97.ps
+
+\section{Patents}
+
+
+\section{Concepts and questions} 
+
+Entity-relationship diagrams.
+
+\section{Tools}
+
+What are the standard tools?
+
+OpenNLP is obviously a good starting point for doing things like POS
+tagging and NP chunking.
+
+\textbf{Apache UIMA:}
+
+\textbf{AlchemyAPI:}
+
+\textbf{NetOwl Extractor:}
+
+\textbf{Tools on Github: matpalm/named-entity-extraction XXX}
+
+\textbf{ReVerb:}
+
+\textbf{GExp:}
+
+\textbf{OpenCalais:}
+
+\textbf{Mallet:}
+
+\textbf{DBpedia Spotlight:}
+
+\textbf{CRF implementations:}
+
+\textbf{General article for text engineering:}
+
+Stanford CRF-based named entity recognition system.
+
+Apache OpenNLP.
+
+Cyc.  OpenCyc.
+
+Palantir. 
+
+Wolfram Alpha.
+
+KnowItAll
+
+IntelligenceInWikipedia project
+
+Weka
+
+Guava
+
+TextRunner
+
+ReVerb
+
+Tika.
+
+OpenCalais.
+
+AlchemyAPI
+
+
+
+\section{Thoughts for a short course on information extraction}
+
+Named entity recognition:
+
+Evaluation 
+
+Maximum entropy models: What they are, how they can be used to do
+part-of-speech tagging, and named-entity detection.
+
+Coreference resolution: 
+
+\section{Miscellanea}
+
+\textbf{On silver bullets:} A large number of different ideas and
+algorithms have been used to do information extraction.  Are there
+silver bullet ideas that can be used to solve the information
+extraction problem at one go?  It's certainly true that there are some
+\emph{very good} ideas that let us go far with surprisingly little
+effort.  However, human language has evolved over many thousands of
+years, and has a large amount of inherent complexity, a complexity
+which is in part reflected by the many years we spend learning to
+understand speech, and by the amusing ``obvious'' (actually, not at
+all) mistakes that children often make.  It may be that any system for
+extracting information thus has to reflect this inherent complexity.
+We should aim for big wins, but expecting a silver bullet may be
+expecting too much.
+
+\textbf{On dealing with uncertainty and issues of credibility:} When
+we do an extraction, e.g., ``Paris is the stylish capital of France''
+-> (Paris, CapitalOf, France), we should associate a probability to
+the resulting assertion.  Actually, we probably need a model of our
+source as well: Is the source trustworthy?  Are they a liar?  How
+could we tell?  Maybe by comparing with other information?
+
+Heuristic: a source is trustworthy if the (old) information we learn
+from it confirms well the information we've learnt from other
+trustworthy sources.
+
+Note that we humans put a tremendous amount of time and effort into
+determining credibility and trustworthiness, and this affects our
+reasoning greatly.  If a chain of reasoning depends on a statement
+whose probability we assess to be intermediate or low, then we need to
+check that statement more carefully.
+
+An additional issue is that often we don't speak in literal terms.
+``New York is the Capital of the World'' doesn't actually quite mean
+(New York, CapitalOf, World), at least not in the same sense as
+(Paris, CapitalOf, France).  And even the most trustworthy and
+credible sources will often contain statements of this sort.
+
+\textbf{What's the connection to entity-relationship diagrams, if
+  anything?}
+
+\end{document}
